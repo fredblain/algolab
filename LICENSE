@@ -1,0 +1,30 @@
+AlgoLab — licences
+
+Copyright (c) 2026 Frédéric Blain
+
+AlgoLab is a single file (algolab.html) that holds two kinds of material:
+
+1. The code (the HTML structure, the CSS and the JavaScript engine) is
+   licensed under the MIT License. See LICENSE-CODE.
+
+2. The educational content written for AlgoLab (the problems marked
+   "AlgoLab" or "Lecture 12": their exercise texts, phrases, loop questions,
+   explanations, distractors and notes, and the texts of the interface) is
+   licensed under the Creative Commons Attribution 4.0 International
+   License (CC BY 4.0).
+
+   You are free to share and adapt this content for any purpose, as long
+   as you give appropriate credit, provide a link to the licence, and
+   indicate if changes were made.
+
+   Summary: https://creativecommons.org/licenses/by/4.0/
+   Full legal code: https://creativecommons.org/licenses/by/4.0/legalcode
+
+Third-party material (not covered by the licences above)
+
+The problems marked "Exercise Bank" (50 of the 67) are based on the
+Python Exercise Bank v1.8 (November 2025) by Paris Mavromoustakos-Blom,
+with acknowledgements to Pieter Spronck (Python book, notebooks and
+exercises) and Lisa Rombout (exercises). Their exercise statements and
+sample answers remain the work of their authors and are used with credit;
+reuse of that material outside AlgoLab requires their permission.
