@@ -10,7 +10,7 @@
 <meta charset="utf-8">
 <script>try{var t=localStorage.getItem("theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="version" content="1.2.0">
+<meta name="version" content="1.3.0">
 <title>Algo Lab</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -192,7 +192,27 @@ select { background: var(--surface); border: 1px solid var(--line); border-radiu
 
 /* ---------- the start page ---------- */
 .start { display: grid; gap: 18px; }
-#work { display: grid; gap: 16px; }   /* the same spacing between blocks as on the page itself */
+#work { display: grid; gap: 16px; }
+/* ---------- exam practice ---------- */
+.examcard .panel-body { gap: 10px; }
+.examcard p { margin: 0; max-width: 72ch; }
+.examtime { display: flex; gap: 8px; align-items: center; font-size: 0.92rem; }
+.exambar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 10px 14px; border: 1px solid var(--accent);
+  border-radius: var(--radius); background: var(--accent-soft); }
+.exambar strong { font-family: var(--font-head); }
+.exambar .bar { flex: 1 1 120px; height: 8px; border-radius: 999px; background: var(--surface); overflow: hidden; }
+.exambar .bar span { display: block; height: 100%; background: var(--accent); }
+.exambar .clock { font-family: var(--font-code); }
+.exambar .push { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.review { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.review > li { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding: 12px 14px; display: grid; gap: 8px; min-width: 0; }
+.review > li > *, .review ul > li { min-width: 0; overflow-wrap: anywhere; }   /* long code lines wrap or scroll inside, never widen the page */
+.review h4 { margin: 0; font-size: 1rem; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; }
+.review ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 6px; }
+.review pre { margin: 0; padding: 10px 12px; background: var(--code-bg); border-radius: 6px; font-family: var(--font-code); font-size: 0.86rem; overflow-x: auto; }
+.review .btn { justify-self: start; }
+.okmark { color: var(--good); font-weight: 600; }
+.badmark { color: var(--bad); font-weight: 600; }   /* the same spacing between blocks as on the page itself */
 #work[hidden] { display: none; }
 .hero h2 { font-size: clamp(1.7rem, 4vw, 2.4rem); line-height: 1.15; max-width: 22ch; margin: 6px 0 10px; }
 .lead { color: var(--muted); max-width: 64ch; font-size: 1.02rem; margin: 0 0 14px; }
@@ -451,6 +471,18 @@ kbd { font-family: var(--font-code); font-size: 0.8rem; padding: 0 5px; border: 
       <div class="start-progress"><span class="label">Your progress</span><span id="startProgress"></span><span class="reset" id="startReset"></span></div>
     </div>
 
+    <h3 class="sec-title">Exam practice <small>a few exercises, as in an exam</small></h3>
+    <section class="panel examcard" aria-label="Exam practice"><div class="panel-body">
+      <p>AlgoLab picks exercises at random across the topics, and removes the help: no hints, no explanations until the end,
+        and <strong>Check works only once</strong>. At the end you see your results, and every mistake with its explanation.
+        It does not change your practice progress.</p>
+      <div class="cta"><button type="button" class="btn primary" data-exam="3">3 exercises</button>
+        <button type="button" class="btn" data-exam="5">5 exercises</button>
+        <button type="button" class="btn" data-exam="8">8 exercises</button></div>
+      <label class="examtime"><input type="checkbox" id="examTimer"> Show a timer (6 minutes per exercise, not enforced)</label>
+      <p class="muted" id="examHist"></p>
+    </div></section>
+
     <h3 class="sec-title">Three steps <small>for every exercise, in this order</small></h3>
     <div class="steps3">
       <article class="panel"><div class="panel-body">
@@ -491,7 +523,10 @@ kbd { font-family: var(--font-code); font-size: 0.8rem; padding: 0 5px; border: 
     </div>
   </section>
 
+  <section id="view-exam" class="start" aria-label="Exam results" hidden></section>
+
   <div id="work">
+  <div class="exambar" id="exambar" role="status" hidden></div>
   <div class="toolbar">
     <label class="field"><span class="label">Problem</span><select id="probSel" aria-label="Problem"></select></label>
     <span class="navbtns"><button type="button" class="btn small" data-nav="-1" id="navPrev">← Previous</button><button type="button" class="btn small" data-nav="1" id="navNext">Next →</button></span>
@@ -5612,7 +5647,7 @@ function shuffle(arr, seed) {
 // ---------- version and feedback ----------
 // MAJOR.MINOR.PATCH: major = a change to the three steps, minor = new problems or features, patch = wording or bug fixes.
 // Keep it in step with <meta name="version"> in the head.
-var VERSION = "1.2.0", VERSION_DATE = "19 Nov 2026";
+var VERSION = "1.3.0", VERSION_DATE = "19 Nov 2026";
 // the feedback address, in two parts (as on fredblain.github.io), joined only when someone clicks "Send feedback"
 var MAIL = {user: "f.l.g.blain", domain: "tilburguniversity.edu"};
 
@@ -5622,14 +5657,22 @@ if (!saved.state || typeof saved.state !== "object") saved.state = {};
 function save() { try { localStorage.setItem(STORE, JSON.stringify(saved)); } catch (e) {} }
 
 // ---------- state: one per problem, kept while the page is open ----------
-var ST = {}, cur = 0, P, S, resetAsk = false, PAGE = "start";   // PAGE: the start page, or the work on one exercise
+var ST = {}, cur = 0, P, S, resetAsk = false, PAGE = "start";
+// EXAM: the exam in progress (null in practice). Its answers live in EXAM.states, never in ST or in saved.state.
+// LASTEXAM: the results of the exam just finished, shown on the results page.
+var EXAM = null, LASTEXAM = null, EXAM_MIN = 6;   // PAGE: the start page, or the work on one exercise
 function fresh() {
   return {view: "read", sel: null, matched: {}, tries: {}, firstTry: 0, q: 0, qTries: {}, picked: [],
           dead: {}, lastWrong: null, fresh: null, prog: [], checks: 0, solved: false, pz: null, flag: -1, ticked: null};
 }
-function load(i) { cur = i; P = PROBLEMS[i]; S = ST[P.id] || (ST[P.id] = restore(P)); }
+function load(i) {
+  cur = i; P = PROBLEMS[i];
+  if (EXAM) S = EXAM.states[P.id] || (EXAM.states[P.id] = fresh());
+  else S = ST[P.id] || (ST[P.id] = restore(P));
+}
 // what is written down after every click: the answers, not the transient bits (selection, highlight, message)
 function persist() {
+  if (EXAM) return;   // exam answers are not practice progress
   try {
     saved.state[P.id] = {view: S.view, matched: S.matched, tries: S.tries, firstTry: S.firstTry, q: S.q, qTries: S.qTries, picked: S.picked,
       dead: S.dead, lastWrong: S.lastWrong, prog: S.prog, checks: S.checks, solved: S.solved, pz: S.pz, flag: S.flag, ticked: S.ticked};
@@ -5734,7 +5777,14 @@ function pickRow(k) {
   if (k === sel) {
     if (!S.tries[sel]) S.firstTry++;
     S.matched[sel] = true; S.sel = null; S.fresh = sel;
-    if (step1Done()) finishStep1(p, true); else say1("good", "<p><strong>Right.</strong> " + md(p.right) + "</p>");
+    if (step1Done()) finishStep1(p, true); else say1("good", "<p><strong>Right.</strong> " + (EXAM ? "" : md(p.right)) + "</p>");
+    renderAll();
+  } else if (EXAM) {
+    // the exam records the mistake, places the right component, and moves on
+    EXAM.res[EXAM.k].mis1.push({ph: sel, row: k});
+    S.tries[sel] = 1; S.matched[sel] = true; S.sel = null; S.fresh = sel;
+    if (step1Done()) finishStep1(p, false);
+    else say1("bad", "<p><strong>Not that one.</strong> Your answer is recorded; the right component has been placed. The explanation comes with your results.</p>");
     renderAll();
   } else {
     S.tries[sel] = (S.tries[sel] || 0) + 1;
@@ -5751,6 +5801,11 @@ function reveal(k) {
   renderAll();
 }
 function finishStep1(p, earned) {
+  if (EXAM) {
+    say1(earned ? "good" : "info", "<p><strong>Step 1 done.</strong> Next question: does something have to be repeated?</p>" +
+         '<button type="button" class="btn primary" data-go="loop">Go to step 2</button>');
+    return;
+  }
   say1("good", "<p>" + (earned ? "<strong>Right.</strong> " : "") + md(p.right) + "</p>" +
        "<p><strong>All components found.</strong> They are listed under Components, in no particular order. Next question: does something have to be repeated?</p>" +
        '<button type="button" class="btn primary" data-go="loop">Go to step 2</button>');
@@ -5824,6 +5879,7 @@ function renderSide() {
   $("legend").textContent = built ? "Colours: the phrase each piece came from. Numbers: the loop answers that decided the line. Outlined numbers belong to the inner loop."
     : v === "read" ? "Each match adds a component here. They have no order and no place yet."
     : v === "loop" ? "Everything you found and decided so far. Nothing has a place yet: in step 3 you put it all together."
+    : EXAM ? "Everything you need is here. In the exam, Check works once and does not tick anything."
     : "Everything you need is here. A tick means every line of that component is in its place.";
   var n = P.keys.length;
   $("tally").innerHTML =
@@ -5851,7 +5907,8 @@ function renderQs() {
     var head = '<h3>' + num(s.lab, s.l > 0 ? "l2" : "") + '<span>' + esc(s.title) + '</span></h3>';
     if (n < S.q) {
       var o = s.Q.opts[S.picked[n]];
-      h += '<div class="q ans">' + head + '<p class="picked">✓ ' + md(o.t) + '</p><p>' + md(o.why) + '</p></div>';
+      if (EXAM) h += '<div class="q ans">' + head + (S.qTries[n] ? '<p class="badmark">✗ Not your answer. The right answer:</p><p>' + md(o.t) + '</p>' : '<p class="picked">✓ ' + md(o.t) + '</p>') + '</div>';
+      else h += '<div class="q ans">' + head + '<p class="picked">✓ ' + md(o.t) + '</p><p>' + md(o.why) + '</p></div>';
     } else if (n === S.q) {
       var dead = S.dead[n] || {};
       h += '<div class="q" id="activeq">' + head + '<ul class="opts">';
@@ -5880,6 +5937,10 @@ function pickOpt(j) {
   if (o.ok) {
     if (!S.qTries[n]) S.firstTry++;
     S.picked[n] = j; S.q++; S.lastWrong = null;
+    renderAll();
+  } else if (EXAM) {
+    EXAM.res[EXAM.k].mis2.push({n: n, j: j});
+    S.qTries[n] = 1; S.picked[n] = Q.opts.findIndex(function (x) { return x.ok; }); S.q++; S.lastWrong = null;
     renderAll();
   } else {
     dead[j] = true; S.qTries[n] = (S.qTries[n] || 0) + 1; S.lastWrong = j;
@@ -6082,6 +6143,7 @@ function progAct(act, i) {
   if (again && !again.disabled) again.focus();
 }
 function check() {
+  if (EXAM) return examCheck();
   var pz = puzzle(), sol = pz.sol, prog = S.prog;
   S.checks++; S.flag = -1;
   var okIdx = {};
@@ -6123,6 +6185,19 @@ function check() {
   }
   renderAll();
 }
+// the exam's Check: only once. The answer is right only if every line is in place, with no distractor.
+function examCheck() {
+  var pz = puzzle(), sol = pz.sol, prog = S.prog;
+  var pass = prog.length === sol.length && prog.every(function (it, i) {
+    var item = pz.items[it.id];
+    return !item.trap && item.text === sol[i].text && it.ind * 4 === sol[i].ind;
+  });
+  S.checks = 1; S.solved = true; S.flag = -1; S.ticked = null;
+  EXAM.res[EXAM.k].pass = pass;
+  S.pz = pass ? {kind: "good", html: "<p><strong>Correct.</strong> Your function is right.</p>"}
+              : {kind: "bad", html: "<p><strong>Not correct.</strong> The function on the right is the solution; your results explain the rest.</p>"};
+  renderAll();
+}
 function solvedPz() {
   return {kind: "good", html: "<p><strong>That is the function.</strong> " + md(P.became) + "</p>" +
           "<p>" + (P.traps.length === 1 ? "The line left over was a distractor:" : "The " + P.traps.length + " lines left over were distractors:") + "</p><ul>" +
@@ -6132,6 +6207,13 @@ function renderDone() {
   var d = $("done");
   d.hidden = !S.solved;
   if (!S.solved) return;
+  if (EXAM) {
+    var lastOne = EXAM.k === EXAM.ids.length - 1;
+    d.innerHTML = '<div class="panel-head"><span class="label">Exam practice · exercise ' + (EXAM.k + 1) + ' of ' + EXAM.ids.length + '</span></div>' +
+      '<div class="panel-body finish"><p>Your answer is recorded.</p><div class="toolbar">' +
+      '<button type="button" class="btn primary" data-examnext="1">' + (lastOne ? "See your results" : "Next exercise") + '</button></div></div>';
+    return;
+  }
   var next = -1, i;
   for (i = 1; i <= PROBLEMS.length; i++) { var j = (cur + i) % PROBLEMS.length; if (!saved.done[PROBLEMS[j].id]) { next = j; break; } }
   d.innerHTML = '<div class="panel-head"><span class="label">Done · ' + esc(P.id) + '</span></div>' +
@@ -6222,7 +6304,7 @@ function renderMenu() {
 var TASKS = {
   read:  ["Step 1 · Recognise", "Click a phrase in the exercise below, then click the component it is in the list under it."],
   loop:  ["Step 2 · Loop?", "Read the exercise again. Is something repeated? Answer the questions below. Each answer adds a component."],
-  build: ["Step 3 · Assemble", "Click or drag the lines into your function. Drag a line up or down to move it, and left or right to indent it (or use <code>←</code> <code>→</code> <code>↑</code> <code>↓</code>). One line is a trap: leave it out. Check ticks the components whose lines are in place."]
+  build: ["Step 3 · Assemble", "Click or drag the lines into your function. Drag a line up or down to move it, and left or right to indent it (or use <code>←</code> <code>→</code> <code>↑</code> <code>↓</code>). Some lines are distractors: leave them out. Check ticks the components whose lines are in place."]
 };
 function renderView() {
   ["read", "loop", "build"].forEach(function (v) {
@@ -6230,7 +6312,9 @@ function renderView() {
     $("tab-" + v).setAttribute("aria-selected", PAGE === "work" && S.view === v);
   });
   $("view-start").hidden = PAGE !== "start";
+  $("view-exam").hidden = PAGE !== "exam";
   $("work").hidden = PAGE !== "work";
+  document.querySelector("#work > .toolbar").hidden = !!EXAM;   // no problem menu during an exam
   $("tab-start").setAttribute("aria-selected", PAGE === "start");
   $("stepNo").textContent = TASKS[S.view][0];
   $("stepTask").innerHTML = TASKS[S.view][1];
@@ -6258,8 +6342,114 @@ function renderStart() {
       '<button type="button" class="btn small" data-prob="' + next + '">' + (d === idx.length ? "Do again" : d ? "Continue" : "Open") + '</button></div></article>';
   }).join("");
 }
+// ---------- exam practice ----------
+function pickExam(n) {
+  var idx = PROBLEMS.map(function (p, i) { return i; });
+  for (var i = idx.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var x = idx[i]; idx[i] = idx[j]; idx[j] = x; }
+  var chosen = [], used = {};
+  var take = function (i) { if (i !== undefined && chosen.indexOf(i) < 0) { chosen.push(i); used[PROBLEMS[i].group] = 1; } };
+  if (n >= 5) {   // like an exam: at least one exercise without a loop, and one with nested loops
+    take(idx.filter(function (i) { return !PROBLEMS[i].loops.length; })[0]);
+    take(idx.filter(function (i) { return PROBLEMS[i].loops.length > 1; })[0]);
+  }
+  while (chosen.length < n) {   // then spread the rest over the topics
+    var next = idx.filter(function (i) { return chosen.indexOf(i) < 0 && !used[PROBLEMS[i].group]; })[0];
+    if (next === undefined) { if (!Object.keys(used).length) break; used = {}; continue; }
+    take(next);
+  }
+  for (i = chosen.length - 1; i > 0; i--) { j = Math.floor(Math.random() * (i + 1)); x = chosen[i]; chosen[i] = chosen[j]; chosen[j] = x; }
+  return chosen;
+}
+function startExam(n) {
+  var ids = pickExam(n);
+  EXAM = {ids: ids, k: 0, states: {}, ask: false, back: cur, timed: !!($("examTimer") && $("examTimer").checked), t0: Date.now(),
+          res: ids.map(function (i) { return {i: i, mis1: [], mis2: [], pass: null}; })};
+  openProblem(ids[0]);
+}
+function examNext() {
+  if (!EXAM) return;
+  if (EXAM.k < EXAM.ids.length - 1) { EXAM.k++; openProblem(EXAM.ids[EXAM.k]); return; }
+  finishExam();
+}
+function finishExam() {
+  var R = {when: new Date(), secs: Math.round((Date.now() - EXAM.t0) / 1000), timed: EXAM.timed, rows: []};
+  EXAM.res.forEach(function (r) {
+    var Q = PROBLEMS[r.i], wrong1 = {};
+    r.mis1.forEach(function (m) { wrong1[m.ph] = 1; });
+    var answered = r.pass !== null;
+    R.rows.push({r: r, p: Q, s1: [Q.keys.length - Object.keys(wrong1).length, Q.keys.length], s2: [Q.seq.length - r.mis2.length, Q.seq.length], pass: !!r.pass, answered: answered});
+  });
+  var sum = function (k, j) { return R.rows.reduce(function (a, x) { return a + x[k][j]; }, 0); };
+  R.full = R.rows.filter(function (x) { return x.pass && x.s1[0] === x.s1[1] && x.s2[0] === x.s2[1]; }).length;
+  R.s1 = [sum("s1", 0), sum("s1", 1)]; R.s2 = [sum("s2", 0), sum("s2", 1)];
+  R.s3 = [R.rows.filter(function (x) { return x.pass; }).length, R.rows.length];
+  saved.exams = (saved.exams || []).concat([{d: R.when.toISOString().slice(0, 10), n: R.rows.length, full: R.full, s1: R.s1, s2: R.s2, s3: R.s3}]).slice(-5);
+  save();
+  var back = EXAM.back;
+  LASTEXAM = R; EXAM = null; PAGE = "exam";
+  load(back);   // back to the practice state, untouched by the exam
+  renderAll(); toTop();
+}
+function clock(secs) { var m = Math.floor(secs / 60), s2 = secs % 60; return m + ":" + (s2 < 10 ? "0" : "") + s2; }
+function renderExamBar() {
+  var bar = $("exambar");
+  bar.hidden = !EXAM;
+  if (!EXAM) return;
+  var n = EXAM.ids.length, k = EXAM.k;
+  bar.innerHTML = '<strong>Exam practice</strong><span>Exercise ' + (k + 1) + ' of ' + n + '</span>' +
+    '<span class="bar" aria-hidden="true"><span style="width:' + Math.round(100 * k / n) + '%"></span></span>' +
+    (EXAM.timed ? '<span class="clock" id="examClock"></span>' : '') +
+    '<span class="push">' + (EXAM.ask
+      ? '<span>End the exam now? Unanswered exercises count as not done.</span><button type="button" class="btn small danger" data-examend="yes">Yes, show my results</button><button type="button" class="btn small" data-examend="no">Continue</button>'
+      : '<button type="button" class="btn small" data-examend="ask">End the exam</button>') + '</span>';
+  tickClock();
+}
+function tickClock() {
+  var c = $("examClock");
+  if (!c || !EXAM) return;
+  var secs = Math.round((Date.now() - EXAM.t0) / 1000), budget = EXAM_MIN * 60 * EXAM.ids.length;
+  c.textContent = "⏱ " + clock(secs) + " / " + clock(budget);
+  c.classList.toggle("badmark", secs > budget);
+}
+setInterval(tickClock, 1000);
+function renderExamHist() {
+  var h = (saved.exams || []).slice(-3).reverse().map(function (e) { return e.d + ": " + e.full + " / " + e.n + " fully correct"; });
+  $("examHist").textContent = h.length ? "Your last attempts: " + h.join(" · ") : "";
+}
+function renderExamView() {
+  var R = LASTEXAM, v = $("view-exam");
+  if (PAGE !== "exam" || !R) { v.innerHTML = ""; return; }
+  var chip = function (label, a) { return '<span class="chip' + (a[0] === a[1] ? " full" : "") + '">' + label + ': ' + a[0] + ' / ' + a[1] + '</span>'; };
+  var h = '<div class="hero"><h2>Your results</h2><p class="lead">' + R.full + ' of ' + R.rows.length + ' exercises fully correct' +
+    (R.timed ? ', in ' + clock(R.secs) + ' (suggested: ' + clock(EXAM_MIN * 60 * R.rows.length) + ')' : '') + '.</p>' +
+    '<div class="start-progress">' + chip("Recognise", R.s1) + chip("Loop questions", R.s2) + chip("Functions written", R.s3) + '</div></div>' +
+    '<h3 class="sec-title">Review <small>every mistake, with its explanation</small></h3><ol class="review">';
+  R.rows.forEach(function (x, n) {
+    var Q = x.p, r = x.r, items = [];
+    r.mis1.forEach(function (m) {
+      var ph = Q.phrases[m.ph], chosen = Q.phrases[m.row];
+      items.push("<li>Step 1: “" + esc(ph.quote) + "” is the <strong>" + esc(ph.kind) + "</strong>, not “" + md(chosen.become) + "”. " + md(ph.right) + "</li>");
+    });
+    r.mis2.forEach(function (m) {
+      var st = Q.seq[m.n], wrong = st.Q.opts[m.j], ok = st.Q.opts.filter(function (o) { return o.ok; })[0];
+      items.push("<li>Step 2, " + esc(st.title) + " You answered “" + md(wrong.t) + "”. " + md(wrong.why) + " The right answer: “" + md(ok.t) + "”. " + md(ok.why) + "</li>");
+    });
+    if (!x.answered) items.push("<li>Step 3: not answered.</li>");
+    else if (!x.pass) items.push("<li>Step 3: the function was not correct. The solution:<pre>" +
+      esc(Q.sol.map(function (L) { return " ".repeat(L.ind) + L.text; }).join("\n")) + "</pre>Lines to leave out: " +
+      Q.traps.map(function (t) { return "<code>" + esc(t.text) + "</code> (" + md(t.why) + ")"; }).join("; ") + "</li>");
+    var mark = function (a) { return '<span class="' + (a[0] === a[1] ? "okmark" : "badmark") + '">' + a[0] + "/" + a[1] + "</span>"; };
+    h += '<li><h4>' + (n + 1) + ". " + esc(Q.id) + '<small>Recognise ' + mark(x.s1) + " · Loop " + mark(x.s2) + " · Function " +
+      (x.pass ? '<span class="okmark">✓</span>' : '<span class="badmark">✗</span>') + '</small></h4>' +
+      (items.length ? "<ul>" + items.join("") + "</ul>" : '<p class="okmark">No mistakes.</p>') +
+      '<button type="button" class="btn small" data-prob="' + PROBLEMS.indexOf(Q) + '">Practise this one</button></li>';
+  });
+  h += '</ol><div class="cta"><button type="button" class="btn primary" data-exam="' + R.rows.length + '">New exam (' + R.rows.length + ' exercises)</button>' +
+       '<button type="button" class="btn" data-page="start">Back to the Start page</button></div>';
+  v.innerHTML = h;
+}
 function renderAll() {
-  renderStart();
+  renderStart(); renderExamHist(); renderExamBar(); renderExamView();
   renderMenu(); renderView(); renderExercise(); renderRows(); renderQs(); renderBuild(); renderSide();
   if (S.fb1) $("fb1").innerHTML = msg(S.fb1.kind, S.fb1.html);
   S.fresh = null;
@@ -6280,7 +6470,13 @@ function light(k, on) {
 document.addEventListener("click", function (e) {
   var t = e.target.closest("button"); if (!t) return;
   var d = t.dataset;
-  if (d.page === "start") goStart();
+  if (d.page === "start" && EXAM) { EXAM.ask = true; renderExamBar(); return; }   // leaving an exam: ask first
+  else if (d.page === "start") goStart();
+  else if (d.exam) { startExam(+d.exam); return; }
+  else if (d.examnext) { examNext(); return; }
+  else if (d.examend === "ask") { EXAM.ask = true; renderExamBar(); return; }
+  else if (d.examend === "no") { EXAM.ask = false; renderExamBar(); return; }
+  else if (d.examend === "yes") { finishExam(); return; }
   else if (d.view) go(d.view);
   else if (d.ph) pickPhrase(d.ph);
   else if (d.row) pickRow(d.row);
@@ -6292,6 +6488,7 @@ document.addEventListener("click", function (e) {
   else if (t.id === "pzCheck") check();
   else if (t.id === "pzClear") { S.prog = []; S.pz = null; S.flag = -1; S.ticked = null; renderBuild(); renderSide(); }
   else if (d.prob) openProblem(+d.prob);
+  else if (d.nav && EXAM) { return; }
   else if (d.nav) { var to = cur + (+d.nav); if (to >= 0 && to < PROBLEMS.length) openProblem(to); }
   else if (d.copy) copyLab();
   else if (d.fb) { feedback(t); return; }
